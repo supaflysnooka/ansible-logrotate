@@ -1,0 +1,143 @@
+# Configure and deploy the load balancer(s).
+
+- hosts: provisionhaproxy
+  vars:
+    configfile: provhaproxy
+    playbooksdir: /Users/rob.birdwell/Downloads/Playbooks
+
+  tasks:
+
+  - name: Upgrade all installed packages via yum
+    yum:
+      name: '*'
+      state: latest
+
+  - name: Uninstall any existing haproxy
+    yum:
+      name: haproxy
+      state: absent
+
+  - name: Copy HAProxy 1.6.11 RPM file to server
+    copy:
+      src: "{{playbooksdir}}/rpms/atthaproxy-1.0.1-1.x86_64.rpm"
+      dest: /tmp/atthaproxy-1.0.1-1.x86_64.rpm
+
+  - name: Install HAProxy with yum locally
+    yum:
+      name: /tmp/atthaproxy-1.0.1-1.x86_64.rpm
+      state: present
+
+# Uncomment lines for logging in HAProxy
+
+  - lineinfile:
+      dest: /etc/rsyslog.conf
+      regexp: '^#\$ModLoad imudp'
+      line: '$ModLoad imudp'
+      state: present
+      owner: root
+      group: root
+      mode: 0644
+
+  - lineinfile:
+      dest: /etc/rsyslog.conf
+      regexp: '^\#\$UDPServerRun 514'
+      line: '$UDPServerRun 514'
+      state: present
+      owner: root
+      group: root
+      mode: 0644
+
+#Create directory for HAProxy socket
+
+  - file:
+      path: /var/lib/haproxy
+      state: directory
+      owner: root
+      group: root
+      mode: 0655
+
+# Edit the rsyslog.conf file to allow for logging
+
+  - lineinfile:
+      dest: /etc/rsyslog.conf
+      insertafter: 'local7.*'
+      line: 'local2.*        /var/log/haproxy.log'
+      backup: no
+
+# Edit the sysctl.conf file to allow
+
+  - sysctl:
+      name: net.ipv4.ip_local_port_range
+      value: 1000 65535
+      state: present
+      reload: yes
+      sysctl_file: /etc/sysctl.conf
+
+  - sysctl:
+      name: net.ipv4.tcp_tw_reuse
+      value: 1
+      state: present
+      reload: yes
+      sysctl_file: /etc/sysctl.conf
+
+# Copy over templates
+
+  - template:
+      src: "{{playbooksdir}}/templates/syslog/syslog.conf"
+      dest: /etc/sysconfig/syslog
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: "{{playbooksdir}}/templates/syslog/haproxy.conf"
+      dest: /etc/rsyslog.d/haproxy.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: "{{playbooksdir}}/templates/haproxy/{{configfile}}.cfg"
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: "{{playbooksdir}}/templates/haproxy/55-fs.conf"
+      dest: /etc/sysctl.d
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: "{{playbooksdir}}/templates/haproxy/92-nofiles.conf"
+      dest: /etc/security/limits.d
+      owner: root
+      group: root
+      mode: 0644
+
+  - name:
+    copy:
+      src: "{{playbooksdir}}/scripts/haproxy"
+      dest: /etc/init.d/haproxy
+      owner: root
+      group: root
+      mode: 0755
+
+# Start haproxy and rsyslog
+
+  - service:
+      name: rsyslog
+      enabled: yes
+      state: restarted
+
+  - name: stop haproxy
+    command: killall haproxy
+    ignore_errors: yes
+    register: myhaproxy
+
+  - service:
+      name: haproxy
+      enabled: yes
+      state: restarted

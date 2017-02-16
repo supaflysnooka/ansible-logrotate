@@ -1,0 +1,177 @@
+# Configure and deploy the load balancer(s).
+
+- hosts: haproxyprovision
+
+  tasks:
+
+  - name: Upgrade all installed packages via yum
+    yum:
+      name: '*'
+      state: latest
+
+  - name: Install haproxy 
+    yum:
+      name: haproxy 
+      state: latest
+
+  - name: Install keepalived
+    yum:
+      name: keepalived
+      state: latest
+
+
+# Edit the rsyslog.conf file
+
+  - lineinfile:
+      dest: /etc/rsyslog.conf 
+      insertafter: 'local7.*'
+      line: 'local2.*        /var/log/haproxy.log'
+      backup: yes
+
+# Edit the sysctl.conf file
+
+  - lineinfile:
+      dest: /etc/sysctl.conf
+      insertafter: 'kernel.shmall = 4294967296'
+      line: '# Increase the number of available ports to prevent exhaustion net.ipv4.ip_local_port_range = 1000 65535'
+      backup: yes
+
+  - lineinfile:
+      dest: /etc/sysctl.conf
+      insertafter: '# Increase the number of available ports to prevent exhaustion net.ipv4.ip_local_port_range = 1000 65535'
+      line: 'net.ipv4.tcp_tw_reuse=1'
+      backup: yes
+
+# Copy over templates
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/syslog/syslog.conf
+      dest: /etc/sysconfig/syslog
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/syslog/haproxy.conf
+      dest: /etc/rsyslog.d/haproxy.conf
+      owner: root
+      group: root
+      mode: 0644
+
+              # Increase the number of available ports to prevent exhaustion
+              # net.ipv4.ip_local_port_range = 1000 65535
+
+# Server-specific template copy
+
+- hosts: 100.106.12.52
+
+  tasks: 
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/keepalive/keepalived.conf.provision1
+      dest: /etc/keepalived/keepalived.conf 
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/provhaproxy.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: 100.106.12.53
+
+  tasks: 
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/keepalive/keepalived.conf.provision2
+      dest: /etc/keepalived/keepalived.conf 
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/provhaproxy.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: 100.106.12.42
+
+  tasks: 
+  
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/keepalive/keepalived.conf.provision3
+      dest: /etc/keepalived/keepalived.conf 
+      owner: root
+      group: root
+      mode: 0644
+              
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/provhaproxy.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: 100.106.12.30 
+  tasks: 
+  
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/keepalive/keepalived.conf.provision4
+      dest: /etc/keepalived/keepalived.conf 
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/provhaproxy.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: haproxyprovision
+
+  tasks:
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/55-fs.conf
+      dest: /etc/sysctl.d
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/92-nofiles.conf
+      dest: /etc/security/limits.d
+      owner: root
+      group: root
+      mode: 0644
+
+              
+# Start haproxy and keepalived
+
+- hosts: haproxyprovision
+
+  tasks:
+
+  - service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+
+  - service:
+      name: rsyslog
+      state: restarted
+      enabled: yes
+
+  - service:
+      name: haproxy
+      state: restarted
+      enabled: yes
+  
+

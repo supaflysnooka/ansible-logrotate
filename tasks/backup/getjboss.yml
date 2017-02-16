@@ -1,0 +1,11 @@
+---
+- name: Get JBoss7
+  hosts: jenkins
+  vars:
+    url: http://lprnedcodbr001v/rpms/jboss7/attmpp/7.1.0.15/msp-attmpp-jboss7-7.1.0.15-all.noarch.rpm
+    file: /tmp/msp-attmpp-jboss7-7.1.0.15-all.noarch.rpm
+
+  tasks:
+  - name: Get the file
+    get_url: url={{url}} dest={{file}}
+

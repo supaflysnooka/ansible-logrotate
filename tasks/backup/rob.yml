@@ -1,0 +1,15 @@
+---
+- name: Copy JBoss RPM to remote machine
+  hosts: webservers
+
+  tasks:
+  - name: set some facts
+    set_fact: ansible_ssh_user=ec2-user ansible_ssh_private_key_file="/Users/rob.birdwell/.ssh/ATTMPPDev.pem"
+
+  - name: sync up
+    synchronize:
+      src=/tmp/msp-attmpp-jboss7-7.1.0.15-all.noarch.rpm
+      dest=/tmp/msp-attmpp-jboss7-7.1.0.15-all.noarch.rpm
+    delegate_to: webservers
+    remote_user: "{{ansible_ssh_user}}"
+    become: no

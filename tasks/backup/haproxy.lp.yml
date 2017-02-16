@@ -1,0 +1,103 @@
+# Configure and deploy the load balancer(s).
+
+- hosts: haproxyliveperson
+
+  tasks:
+
+  - name: Upgrade all installed packages via yum
+    yum:
+      name: '*'
+      state: latest
+
+  - name: Install haproxy 
+    yum:
+      name: haproxy
+      state: latest
+
+  - name: Install keepalived 
+    yum:
+      name: keepalived
+      state: latest
+
+
+# Edit the rsyslog.conf file
+
+  - lineinfile:
+      dest: /etc/rsyslog.conf 
+      insertafter: 'local7.*'
+      line: 'local2.*        /var/log/haproxy'
+      backup: yes
+
+  - lineinfile:
+      dest: /etc/rsyslog.conf 
+      insertafter: 'local2.*'
+      line: 'local3.*        /var/log/haproxy-access_log'
+      backup: yes
+
+# Copy over templates
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/syslog
+      dest: /etc/sysconfig/syslog
+      owner: root
+      group: root
+      mode: 0644
+
+# Server-specific template copy
+
+- hosts: 100.106.12.48 
+
+  tasks: 
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/keepalive/keepalived.conf.lp1
+      dest: /etc/keepalived/keepalived.conf 
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/lphaproxy1.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: 100.106.12.41 
+
+  tasks: 
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/keepalive/keepalived.conf.lp2
+      dest: /etc/keepalived/keepalived.conf 
+      owner: root
+      group: root
+      mode: 0644
+
+  - template:
+      src: /Users/rob.birdwell/Downloads/Playbooks/templates/haproxy/lphaproxy2.cfg
+      dest: /etc/haproxy/haproxy.cfg
+      owner: root
+      group: root
+      mode: 0644
+
+
+- hosts: haproxyliveperson
+
+  tasks:
+
+  - service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+
+  - service:
+      name: rsyslog
+      state: restarted
+      enabled: yes
+
+  - service:
+      name: haproxy
+      state: restarted
+      enabled: yes
+  
